@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>local-brain</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "@milkdown/crepe": "https://esm.sh/@milkdown/crepe@7.5.0",
+            "@milkdown/crepe/theme/common/style.css": "https://esm.sh/@milkdown/crepe@7.5.0/theme/common/style.css",
+            "@milkdown/crepe/theme/nord/style.css": "https://esm.sh/@milkdown/crepe@7.5.0/theme/nord/style.css"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h1>local-brain</h1>
+                <button id="new-note-btn" title="New note">+</button>
+            </div>
+            <input type="text" id="search-input" placeholder="Search notes...">
+            <div id="search-results"></div>
+            <div id="tree"></div>
+        </aside>
+        <main id="main">
+            <div id="toolbar">
+                <div class="toolbar-left">
+                    <button class="tab-btn active" data-tab="editor">Editor</button>
+                    <button class="tab-btn" data-tab="chat">Chat</button>
+                    <button class="tab-btn" data-tab="graph">Graph</button>
+                </div>
+                <div class="toolbar-center" id="editor-toolbar" style="display:flex;">
+                    <span id="note-path">No note open</span>
+                </div>
+                <div class="toolbar-right" id="editor-actions" style="display:flex;">
+                    <button id="save-btn">Save</button>
+                    <button id="source-toggle">Source</button>
+                    <button id="delete-btn" class="danger">Delete</button>
+                </div>
+                <div class="toolbar-right" id="chat-actions" style="display:none;">
+                    <select id="model-select"></select>
+                    <span id="context-indicator">—</span>
+                </div>
+            </div>
+
+            <!-- Editor Tab -->
+            <div id="editor-tab" class="tab-pane active">
+                <div id="editor-pane">
+                    <div id="milkdown-editor"></div>
+                    <textarea id="source-editor" class="hidden"></textarea>
+                    <div id="preview" class="hidden"></div>
+                </div>
+                <aside id="right-sidebar">
+                    <h3>Backlinks</h3>
+                    <div id="backlinks">Open a note to see backlinks.</div>
+                    <h3>Tags</h3>
+                    <div id="tags">—</div>
+                </aside>
+            </div>
+
+            <!-- Chat Tab -->
+            <div id="chat-tab" class="tab-pane">
+                <div id="chat-pane">
+                    <div id="chat-messages"></div>
+                    <div id="chat-input-area">
+                        <textarea id="chat-input" placeholder="Ask your brain..." rows="3"></textarea>
+                        <button id="chat-send">Send</button>
+                    </div>
+                </div>
+                <aside id="chat-right-sidebar">
+                    <h3>Retrieved Context</h3>
+                    <div id="chat-context">—</div>
+                    <h3>Session</h3>
+                    <div id="chat-session">—</div>
+                </aside>
+            </div>
+
+            <!-- Graph Tab -->
+            <div id="graph-tab" class="tab-pane">
+                <div id="graph-view"></div>
+            </div>
+        </main>
+    </div>
+    <script type="module" src="/static/app.js"></script>
+</body>
+</html>

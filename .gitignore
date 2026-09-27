@@ -1,0 +1,36 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.DS_Store
+Thumbs.db
+node_modules/
+
+# --- Phase 7 hardening (2026-09-27) ---
+# Virtualenvs: match both .venv and the .venvNNN variant actually in use
+.venv/
+.venv*/
+venv/
+env/
+
+# Secrets: never commit these
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+secrets.json
+
+# Local data / databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Runtime output
+logs/
+tmp/
+*.log
