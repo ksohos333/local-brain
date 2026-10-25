@@ -36,6 +36,42 @@ DEFAULT_CONFIG = {
         "provider": "auto",  # auto | trueforge | ollama
         "ollama_model": "llama3.2:3b",
     },
+    "caldav": {
+        "url": "http://127.0.0.1:5232",
+        "username": "local",
+        # Password lives in ~/.config/local-brain/config.yaml, never in the repo.
+        "password": "",
+        "timeout": 10.0,
+        # Empty means "every calendar"; name them to restrict what the month
+        # view pulls in.
+        "event_calendars": [],
+        # Empty means "first calendar that accepts VTODO", else auto-created.
+        "todo_calendar": "",
+    },
+    "jobs": {
+        # The Jobs tab reads job-radar's SQLite file read-only; job-radar stays
+        # the only writer.
+        "database": str(Path.home() / "job-radar" / "data" / "jogradar.db"),
+        "page_size": 50,
+    },
+    "campaign": {
+        # Kalo Concierge's research pipeline. Read-only: ~/campaign stays the
+        # only writer. The Leads tab reads leads.db directly rather than
+        # importing a copy, so there is no sync step to drift.
+        "root": str(Path.home() / "campaign"),
+        "page_size": 50,
+    },
+    "logseq": {
+        # The live Kalo vault is Logseq's classic *file* graph: a bullet outline
+        # in markdown under pages/ and journals/. The DB-backed graph in
+        # ~/logseq/graphs is a separate, near-empty demo, and the official CLI
+        # can only adopt new graphs under its own root-dir -- so notes are
+        # written straight to the markdown instead of shelling out.
+        "vault": str(Path.home() / "brain" / "logseq"),
+        # Must match the vault's own :date-formatter in logseq/config.edn, or
+        # notes land on a second, otherwise-empty journal page.
+        "journal_date_format": "%Y-%m-%d",
+    },
     "models": [],
 }
 

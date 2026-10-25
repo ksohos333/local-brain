@@ -41,11 +41,17 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    /* The title read as sitting low in the bar; lift it and give the row a
+       baseline that lines up with the "+" button. */
+    min-height: 34px;
+    margin-top: -2px;
 }
 
 .sidebar-header h1 {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
+    line-height: 1.1;
     margin: 0;
+    padding: 2px 0;
     color: var(--accent);
 }
 
@@ -68,13 +74,29 @@ body {
     margin-bottom: 8px;
 }
 
-#tree, #search-results {
+/* The tree is the primary sidebar content, so it takes the remaining height.
+   Search results are a transient overlay on top of it: when there are no
+   results they must collapse to nothing instead of splitting the sidebar
+   space with the tree. */
+#tree {
     flex: 1;
     overflow-y: auto;
 }
 
+#search-results {
+    flex: 0 0 auto;
+    max-height: 40%;
+    overflow-y: auto;
+}
+
+#search-results:empty {
+    display: none;
+}
+
 .tree-item {
-    padding: 4px 6px;
+    /* Align with the search field above: that input has 1px border + 8px
+       padding, so match the same text inset instead of drifting left. */
+    padding: 3px 8px;
     cursor: pointer;
     border-radius: 4px;
     white-space: nowrap;
@@ -97,7 +119,35 @@ body {
 }
 
 .tree-children {
-    padding-left: 14px;
+    padding-left: 12px;
+}
+
+#toast {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--panel-hover);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 50;
+}
+
+#toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+#toast.error {
+    background: #7f1d1d;
+    border-color: #ef4444;
+    color: #fee2e2;
 }
 
 #main {
@@ -265,7 +315,72 @@ select {
     display: none !important;
 }
 
-#right-sidebar, #chat-right-sidebar {
+#right-sidebar, #apps-status {
+    margin-bottom: 8px;
+}
+
+.apps-summary {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.app-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    padding: 2px 0;
+}
+
+.app-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--muted);
+}
+
+.app-row.up .app-dot {
+    background: #4ade80;
+}
+
+.app-row.down .app-dot {
+    background: #f87171;
+}
+
+.app-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-launch {
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.72rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+}
+
+.app-launch:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+.app-detail {
+    color: var(--muted);
+    font-size: 0.68rem;
+    margin: 0 0 4px 14px;
+}
+
+#apps-refresh {
+    margin-bottom: 10px;
+}
+
+#chat-right-sidebar {
     width: 240px;
     background: var(--panel);
     border-left: 1px solid var(--border);
@@ -334,13 +449,113 @@ select {
 }
 
 #graph-tab {
+    flex-direction: row;
+}
+
+#graph-pane {
+    flex: 1;
+    display: flex;
     flex-direction: column;
+    overflow: hidden;
+}
+
+#graph-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+}
+
+#graph-controls button {
+    background: var(--panel-hover);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    min-width: 30px;
+    padding: 3px 9px;
+    cursor: pointer;
+}
+
+#graph-controls button:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+#graph-hint {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-left: 6px;
 }
 
 #graph-view {
     flex: 1;
     background: var(--bg);
     overflow: hidden;
+    position: relative;
+}
+
+#graph-view svg {
+    display: block;
+    cursor: grab;
+}
+
+#graph-view svg:active {
+    cursor: grabbing;
+}
+
+#graph-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#graph-sidebar h3 {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+#graph-note-filter {
+    margin-bottom: 8px;
+}
+
+#graph-note-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.graph-note-item {
+    padding: 5px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.graph-note-item:hover {
+    background: var(--panel-hover);
+}
+
+.graph-note-item .graph-note-path {
+    display: block;
+    color: var(--muted);
+    font-size: 0.7rem;
+    word-break: break-all;
+}
+
+#graph-count {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin: 6px 0 2px;
 }
 
 #chat-tab {
@@ -420,4 +635,497 @@ select {
 #context-indicator {
     font-size: 0.8rem;
     color: var(--muted);
+}
+
+/* --- Shared bits for the Jobs / To-dos / Calendar tabs --- */
+
+.empty {
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 14px;
+    text-align: center;
+}
+
+.empty.error {
+    color: var(--danger);
+}
+
+.hint {
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+    margin: 12px 0 0;
+}
+
+.hint code {
+    background: var(--bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.8rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.stat:last-child {
+    border-bottom: none;
+}
+
+.stat.muted {
+    color: var(--muted);
+}
+
+.stat strong {
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+.stat strong.ok {
+    color: #4ade80;
+}
+
+.badge {
+    display: inline-block;
+    background: var(--panel-hover);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 0.68rem;
+    color: var(--text);
+}
+
+.badge.muted {
+    color: var(--muted);
+}
+
+.badge.salary {
+    color: #4ade80;
+    border-color: #166534;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.check input {
+    accent-color: var(--accent);
+}
+
+/* --- Jobs --- */
+
+#jobs-pane, #todos-pane, #calendar-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#jobs-sidebar, #todos-sidebar, #calendar-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 12px;
+    overflow-y: auto;
+}
+
+#jobs-sidebar h3, #todos-sidebar h3, #calendar-sidebar h3 {
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+#jobs-sidebar h3:not(:first-child),
+#todos-sidebar h3:not(:first-child),
+#calendar-sidebar h3:not(:first-child) {
+    margin-top: 16px;
+}
+
+#jobs-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+#jobs-filters input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 9px;
+    font-size: 0.85rem;
+}
+
+#jobs-filters select {
+    min-width: 130px;
+}
+
+#jobs-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.job-card {
+    display: block;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.job-card:hover {
+    border-color: var(--accent);
+    background: var(--panel-hover);
+}
+
+.job-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.job-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.job-company {
+    font-size: 0.8rem;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.job-meta {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 3px;
+}
+
+.job-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.job-badges:empty {
+    display: none;
+}
+
+#jobs-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
+#jobs-pager button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* --- To-dos --- */
+
+#todo-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+}
+
+#todo-form input[type="text"] {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 9px;
+    font-size: 0.85rem;
+}
+
+#todo-form input[type="date"] {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 0.8rem;
+    color-scheme: dark;
+}
+
+#todo-form select {
+    min-width: 120px;
+}
+
+#todo-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.todo-group h3 {
+    margin: 6px 0 8px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.todo-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 9px 11px;
+    margin-bottom: 6px;
+}
+
+.todo-row.done .todo-summary {
+    text-decoration: line-through;
+    color: var(--muted);
+}
+
+.todo-check {
+    margin-top: 2px;
+    accent-color: var(--accent);
+}
+
+.todo-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.todo-summary {
+    font-size: 0.87rem;
+    word-break: break-word;
+}
+
+.todo-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.todo-meta:empty {
+    display: none;
+}
+
+.due {
+    font-size: 0.72rem;
+    color: var(--accent);
+}
+
+.todo-delete {
+    padding: 0 7px;
+    font-size: 1rem;
+    line-height: 1.1;
+}
+
+/* --- Calendar --- */
+
+#calendar-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cal-head {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+}
+
+.cal-dow {
+    padding: 6px 8px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+}
+
+.cal-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(64px, 1fr);
+    overflow-y: auto;
+}
+
+.cal-cell {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 4px 5px;
+    overflow: hidden;
+}
+
+.cal-cell.today {
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.cal-cell.empty {
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.cal-daynum {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 3px;
+}
+
+.cal-cell.today .cal-daynum {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.cal-item {
+    background: var(--accent);
+    color: var(--bg);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.68rem;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cal-event {
+    border-bottom: 1px solid var(--border);
+    padding: 7px 0;
+}
+
+.cal-event-time {
+    font-size: 0.72rem;
+    color: var(--accent);
+}
+
+.cal-event-title {
+    font-size: 0.83rem;
+    margin-top: 2px;
+    word-break: break-word;
+}
+
+.cal-event-cal {
+    font-size: 0.7rem;
+    margin-top: 2px;
+}
+
+#calendar-label {
+    font-size: 0.85rem;
+    min-width: 130px;
+    text-align: center;
+}
+
+/* --- New note dialog (vault or Logseq) --- */
+
+#new-note-modal {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0;
+    width: min(440px, calc(100vw - 32px));
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+#new-note-modal::backdrop {
+    background: rgba(2, 6, 23, 0.7);
+}
+
+#new-note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px 16px;
+}
+
+#new-note-form h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.nn-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.nn-field span em {
+    font-style: normal;
+    opacity: 0.65;
+}
+
+.nn-field input,
+.nn-field select,
+.nn-field textarea {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 9px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    width: 100%;
+}
+
+.nn-field textarea {
+    resize: vertical;
+    min-height: 62px;
+}
+
+.nn-field input:focus,
+.nn-field select:focus,
+.nn-field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+#new-note-modal .hint {
+    margin: 0;
+}
+
+.nn-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
 }

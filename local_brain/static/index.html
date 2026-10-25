@@ -35,6 +35,10 @@
                     <button class="tab-btn active" data-tab="editor">Editor</button>
                     <button class="tab-btn" data-tab="chat">Chat</button>
                     <button class="tab-btn" data-tab="graph">Graph</button>
+                    <button class="tab-btn" data-tab="jobs">Jobs</button>
+                    <button class="tab-btn" data-tab="leads">Leads</button>
+                    <button class="tab-btn" data-tab="todos">To&#8209;dos</button>
+                    <button class="tab-btn" data-tab="calendar">Calendar</button>
                 </div>
                 <div class="toolbar-center" id="editor-toolbar" style="display:flex;">
                     <span id="note-path">No note open</span>
@@ -47,6 +51,23 @@
                 <div class="toolbar-right" id="chat-actions" style="display:none;">
                     <select id="model-select"></select>
                     <span id="context-indicator">—</span>
+                </div>
+                <div class="toolbar-right" id="jobs-actions" style="display:none;">
+                    <span id="jobs-count">—</span>
+                    <button id="jobs-refresh">Refresh</button>
+                </div>
+                <div class="toolbar-right" id="leads-actions" style="display:none;">
+                    <span id="leads-count">—</span>
+                    <button id="leads-refresh">Refresh</button>
+                </div>
+                <div class="toolbar-right" id="todos-actions" style="display:none;">
+                    <button id="todos-refresh">Refresh</button>
+                </div>
+                <div class="toolbar-right" id="calendar-actions" style="display:none;">
+                    <button id="calendar-today">Today</button>
+                    <button id="calendar-prev" title="Previous month">&lsaquo;</button>
+                    <span id="calendar-label">—</span>
+                    <button id="calendar-next" title="Next month">&rsaquo;</button>
                 </div>
             </div>
 
@@ -75,6 +96,9 @@
                     </div>
                 </div>
                 <aside id="chat-right-sidebar">
+                    <h3>Local Apps</h3>
+                    <div id="apps-status">checking...</div>
+                    <button id="apps-refresh">Refresh</button>
                     <h3>Retrieved Context</h3>
                     <div id="chat-context">—</div>
                     <h3>Session</h3>
@@ -84,10 +108,170 @@
 
             <!-- Graph Tab -->
             <div id="graph-tab" class="tab-pane">
-                <div id="graph-view"></div>
+                <div id="graph-pane">
+                    <div id="graph-controls">
+                        <button id="graph-zoom-in" title="Zoom in">+</button>
+                        <button id="graph-zoom-out" title="Zoom out">&minus;</button>
+                        <button id="graph-zoom-reset" title="Reset view">Reset</button>
+                        <span id="graph-hint">Scroll to zoom &middot; drag to pan &middot; double-click a node to open the note</span>
+                    </div>
+                    <div id="graph-view"></div>
+                </div>
+                <aside id="graph-sidebar">
+                    <h3>Open a note</h3>
+                    <input type="text" id="graph-note-filter" placeholder="Filter notes...">
+                    <div id="graph-count"></div>
+                    <div id="graph-note-list"></div>
+                </aside>
+            </div>
+
+            <!-- Jobs Tab -->
+            <div id="jobs-tab" class="tab-pane">
+                <div id="jobs-pane">
+                    <div id="jobs-filters">
+                        <input type="text" id="jobs-search" placeholder="Search title, company, description...">
+                        <select id="jobs-source">
+                            <option value="">All sources</option>
+                        </select>
+                        <select id="jobs-sort">
+                            <option value="recent">Newest first</option>
+                            <option value="oldest">Oldest first</option>
+                            <option value="salary">Highest salary</option>
+                            <option value="company">Company A-Z</option>
+                            <option value="title">Title A-Z</option>
+                        </select>
+                        <label class="check"><input type="checkbox" id="jobs-remote"> Remote only</label>
+                        <label class="check"><input type="checkbox" id="jobs-salary"> Salary known</label>
+                    </div>
+                    <div id="jobs-list"></div>
+                    <div id="jobs-pager">
+                        <button id="jobs-prev">Previous</button>
+                        <span id="jobs-page">—</span>
+                        <button id="jobs-next">Next</button>
+                    </div>
+                </div>
+                <aside id="jobs-sidebar">
+                    <h3>Overview</h3>
+                    <div id="jobs-stats">—</div>
+                    <h3>Sources</h3>
+                    <div id="jobs-sources">—</div>
+                    <p class="hint">Read-only view of <code>jogradar.db</code>. To change filters or run an ingest, use the <code>job-radar</code> CLI.</p>
+                </aside>
+            </div>
+
+            <!-- To-dos Tab -->
+            <div id="todos-tab" class="tab-pane">
+                <div id="todos-pane">
+                    <div id="todo-form">
+                        <input type="text" id="todo-summary" placeholder="What needs doing?">
+                        <input type="date" id="todo-due">
+                        <select id="todo-priority">
+                            <option value="">No priority</option>
+                            <option value="1">High</option>
+                            <option value="5">Medium</option>
+                            <option value="9">Low</option>
+                        </select>
+                        <button id="todo-add">Add</button>
+                    </div>
+                    <div id="todo-list"></div>
+                </div>
+                <aside id="todos-sidebar">
+                    <h3>Sync</h3>
+                    <div id="todos-status">—</div>
+                    <h3>Counts</h3>
+                    <div id="todos-counts">—</div>
+                    <p class="hint">To-dos are <code>VTODO</code> components stored in Radicale, so they sync to any CalDAV client.</p>
+                </aside>
+            </div>
+
+            <!-- Leads Tab (Kalo Concierge research pipeline) -->
+            <div id="leads-tab" class="tab-pane">
+                <div id="leads-pane">
+                    <div id="leads-filters">
+                        <input type="text" id="leads-search" placeholder="Search name, city, phone, website, hook...">
+                        <select id="leads-status">
+                            <option value="">All statuses</option>
+                        </select>
+                        <select id="leads-area">
+                            <option value="">All areas</option>
+                        </select>
+                        <select id="leads-sort">
+                            <option value="recent">Newest first</option>
+                            <option value="name">Name A-Z</option>
+                            <option value="city">City A-Z</option>
+                            <option value="status">By status</option>
+                            <option value="contacted">Recently contacted</option>
+                        </select>
+                        <label class="check"><input type="checkbox" id="leads-contacted"> Contacted only</label>
+                    </div>
+                    <div id="leads-list"></div>
+                    <div id="leads-pager">
+                        <button id="leads-prev">Previous</button>
+                        <span id="leads-page">&mdash;</span>
+                        <button id="leads-next">Next</button>
+                    </div>
+                </div>
+                <aside id="leads-sidebar">
+                    <h3>Overview</h3>
+                    <div id="leads-stats">&mdash;</div>
+                    <h3>Areas</h3>
+                    <div id="leads-areas">&mdash;</div>
+                    <p class="hint">Reads <code>leads.db</code> and <code>outreach.db</code> directly &mdash; nothing is imported and nothing is written. <code>~/campaign</code> stays the only writer.</p>
+                </aside>
+            </div>
+
+            <!-- Calendar Tab -->
+            <div id="calendar-tab" class="tab-pane">
+                <div id="calendar-pane">
+                    <div id="calendar-grid"></div>
+                </div>
+                <aside id="calendar-sidebar">
+                    <h3>Events this month</h3>
+                    <div id="calendar-events">—</div>
+                    <h3>Calendars</h3>
+                    <div id="calendar-list">—</div>
+                </aside>
             </div>
         </main>
     </div>
+
+    <dialog id="new-note-modal">
+        <form id="new-note-form" method="dialog">
+            <h2>New note</h2>
+
+            <label class="nn-field" for="nn-target">
+                <span>Save to</span>
+                <select id="nn-target">
+                    <option value="vault">Vault note (markdown file)</option>
+                    <option value="logseq-page">Logseq page</option>
+                    <option value="logseq-journal">Logseq journal entry</option>
+                </select>
+            </label>
+
+            <label class="nn-field" for="nn-title">
+                <span id="nn-title-label">Title</span>
+                <input type="text" id="nn-title" autocomplete="off" spellcheck="false">
+            </label>
+
+            <label class="nn-field nn-logseq-only" for="nn-tags">
+                <span>Tags</span>
+                <input type="text" id="nn-tags" placeholder="comma separated — idea, inbox" autocomplete="off">
+            </label>
+
+            <label class="nn-field nn-logseq-only" for="nn-content">
+                <span>Content <em>optional</em></span>
+                <textarea id="nn-content" rows="3" placeholder="First block of the note"></textarea>
+            </label>
+
+            <p class="hint" id="nn-hint"></p>
+
+            <div class="nn-actions">
+                <button type="button" id="nn-cancel">Cancel</button>
+                <button type="submit" id="nn-create">Create</button>
+            </div>
+        </form>
+    </dialog>
+
     <script type="module" src="/static/app.js"></script>
 </body>
 </html>

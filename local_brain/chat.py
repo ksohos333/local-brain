@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 import uuid
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
@@ -55,6 +56,48 @@ async def ollama_health() -> Tuple[bool, List[str]]:
     return False, []
 
 
+# Ollama models tagged only "embedding" (nomic-embed-text, bge-*, etc.) appear in
+# /api/tags alongside chat models but abort with "does not support generate" if
+# selected for chat. /api/show reports `capabilities`, so ask it and hide the
+# ones that cannot generate. Results are cached because /api/show loads the
+# model manifest and the dropdown is re-rendered on every tab switch.
+_EMBED_MODEL_HINTS = ("embed", "bge-", "minilm", "e5-", "gte-", "arctic-embed")
+_OLLAMA_CAPABILITY_CACHE: Dict[str, Tuple[float, bool]] = {}
+_CAPABILITY_TTL = 300.0
+
+
+def _looks_like_embedding(name: str) -> bool:
+    return any(h in name.lower() for h in _EMBED_MODEL_HINTS)
+
+
+async def _ollama_can_generate(client: httpx.AsyncClient, ollama_url: str, name: str) -> bool:
+    """Whether a model supports text generation.
+
+    Prefers the authoritative `capabilities` field from /api/show. Falls back to
+    a name heuristic only if the endpoint is unavailable (older Ollama), so a
+    model is never hidden just because the check failed.
+    """
+    hit = _OLLAMA_CAPABILITY_CACHE.get(name)
+    now = time.monotonic()
+    if hit and now - hit[0] < _CAPABILITY_TTL:
+        return hit[1]
+
+    capable = True
+    try:
+        resp = await client.post(f"{ollama_url}/api/show", json={"model": name}, timeout=5.0)
+        if resp.status_code == 200:
+            caps = resp.json().get("capabilities")
+            if isinstance(caps, list) and caps:
+                capable = "completion" in caps
+            else:
+                capable = not _looks_like_embedding(name)
+    except Exception:
+        capable = not _looks_like_embedding(name)
+
+    _OLLAMA_CAPABILITY_CACHE[name] = (now, capable)
+    return capable
+
+
 async def get_models() -> List[Dict[str, any]]:
     """Merge Ollama local models with configured models."""
     models = []
@@ -69,9 +112,12 @@ async def get_models() -> List[Dict[str, any]]:
                 data = resp.json()
                 for m in data.get("models", []):
                     name = m.get("name", "")
-                    if name and name not in seen:
-                        seen.add(name)
-                        models.append({"id": name, "name": name, "local": True, "provider": "ollama"})
+                    if not name or name in seen:
+                        continue
+                    if not await _ollama_can_generate(client, ollama_url, name):
+                        continue
+                    seen.add(name)
+                    models.append({"id": name, "name": name, "local": True, "provider": "ollama"})
     except Exception:
         pass
 

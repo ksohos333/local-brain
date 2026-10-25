@@ -417,6 +417,30 @@ def recent_context(session_id: str, n: int = 10) -> List[Dict[str, Any]]:
 # Deletion / stats
 # ---------------------------------------------------------------------------
 
+def _purge_chunks(conn: sqlite3.Connection, rows: List[sqlite3.Row]) -> int:
+    """Remove chunk rows from the content table, the vec table and the FTS index.
+
+    All three stores must be hit explicitly: memory_chunks_fts is an
+    external-content FTS5 table, so deleting the content row alone leaves the
+    posting behind and it keeps showing up in searches.
+    """
+    for row in rows:
+        chunk_id = row["id"]
+        conn.execute("DELETE FROM memory_chunks_vec WHERE rowid = ?", (chunk_id,))
+        # An external-content FTS5 table must be handed the ORIGINAL text
+        # it indexed, otherwise it cannot know which terms to drop.
+        # Passing NULL here removes nothing, so every delete/insert cycle
+        # leaked the whole deleted chunk into the index forever and grew
+        # memory_chunks_fts_data without bound.
+        conn.execute(
+            "INSERT INTO memory_chunks_fts(memory_chunks_fts, rowid, content) "
+            "VALUES ('delete', ?, ?)",
+            (chunk_id, row["content"]),
+        )
+        conn.execute("DELETE FROM memory_chunks WHERE id = ?", (chunk_id,))
+    return len(rows)
+
+
 def delete_source(source: str, source_id: Optional[str] = None) -> int:
     """Delete chunks by source (and optionally source_id)."""
     with _connect() as conn:
@@ -431,22 +455,33 @@ def delete_source(source: str, source_id: Optional[str] = None) -> int:
                 (source,),
             ).fetchall()
 
-        for row in rows:
-            chunk_id = row["id"]
-            conn.execute("DELETE FROM memory_chunks_vec WHERE rowid = ?", (chunk_id,))
-            # An external-content FTS5 table must be handed the ORIGINAL text
-            # it indexed, otherwise it cannot know which terms to drop.
-            # Passing NULL here removes nothing, so every delete/insert cycle
-            # leaked the whole deleted chunk into the index forever and grew
-            # memory_chunks_fts_data without bound.
-            conn.execute(
-                "INSERT INTO memory_chunks_fts(memory_chunks_fts, rowid, content) "
-                "VALUES ('delete', ?, ?)",
-                (chunk_id, row["content"]),
-            )
-            conn.execute("DELETE FROM memory_chunks WHERE id = ?", (chunk_id,))
+        removed = _purge_chunks(conn, rows)
         conn.commit()
-        return len(rows)
+        return removed
+
+
+def delete_session(session_id: str) -> int:
+    """Delete every chunk belonging to one chat session.
+
+    Used when a chat is permanently deleted: the session's turns live here as
+    `bigus_dickus` chunks keyed by session_id, and leaving them behind would
+    keep the deleted conversation retrievable through /api/rag/search.
+    Returns the number of chunks removed.
+    """
+    if not session_id:
+        return 0
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, content FROM memory_chunks WHERE session_id = ?",
+            (session_id,),
+        ).fetchall()
+        removed = _purge_chunks(conn, rows)
+        conn.commit()
+    if removed:
+        # Each purge appends a fresh FTS5 segment; compact so repeated deletes
+        # do not grow the shadow tables without bound.
+        optimize_index()
+    return removed
 
 
 def rebuild_index() -> bool:

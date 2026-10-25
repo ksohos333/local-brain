@@ -1,107 +1,173 @@
 # local-brain
 
-Unified, open-source, local-first note brain with RAG memory.
+A private, local-first knowledge brain: a Markdown vault with hybrid semantic
+search, a desktop editor, and an MCP server so AI tools can query it — running
+entirely on your own machine, with nothing sent to a third party.
 
-Combines an Obsidian-like UI with open-source Markdown storage and a Postgres-based RAG backend. It is the shared memory layer for OpenCode and bigus_dickus.
+![local-brain chat](docs/screenshot-chat-response.png)
+
+## Why
+
+Most "second brain" tools want your notes on someone else's server. This one
+does not. Notes stay as plain Markdown files you own and can read with `cat`.
+Search runs against a local SQLite file with FTS5 full-text search and
+sqlite-vec vector similarity, so it works offline and keeps working if the
+provider disappears. Embeddings are computed locally with `fastembed` (or
+Ollama, if you prefer a local model).
+
+The MCP server is the point of the project: it exposes the same retrieval to
+AI coding tools, so an assistant can pull in the notes and context you actually
+care about instead of a generic model's guesses.
+
+## What it does
+
+- **Markdown vault** — notes as plain `.md` files with frontmatter, tags,
+  backlinks and a D3 force-directed graph view.
+- **Hybrid search** — SQLite FTS5 for keywords plus sqlite-vec for semantic
+  similarity, ranked together. `/api/rag/search` and `/api/search`.
+- **Desktop shell** — PySide6 window with a QWebEngineView host for the web UI.
+- **WYSIWYG editor** — Milkdown-based Markdown editing, so the vault is
+  writable without leaving the app.
+- **MCP server** — `search_memory`, `recent_context` and `index_memory`
+  exposed over the Model Context Protocol.
+- **Integrations** — CalDAV calendar, Logseq note ingestion, Obsidian-style
+  backlinks, plus a small leads tracker, job tracker and todo store.
+- **OpenCode chat ingestion** — index your AI coding sessions back into the
+  vault so your own history becomes searchable memory.
 
 ## Stack
 
-- **Desktop shell**: PySide6 + QWebEngineView
-- **Backend**: FastAPI
-- **Editor**: Milkdown WYSIWYG Markdown
-- **Graph**: D3.js force-directed graph
-- **Search**: Postgres hybrid search (full-text + vector similarity via pgvector)
-- **Embeddings**: fastembed (default `all-MiniLM-L6-v2`, 90 MB), Ollama optional
-- **Storage**: Markdown files on disk + Postgres container
+| Layer | Choice |
+|---|---|
+| Backend | FastAPI, uvicorn (37 REST endpoints) |
+| Desktop shell | PySide6 + QWebEngineView |
+| Editor | Milkdown (WYSIWYG Markdown) |
+| Graph view | D3.js force-directed |
+| Storage | Markdown files on disk + one SQLite file |
+| Search | SQLite FTS5 + sqlite-vec vector similarity |
+| Embeddings | fastembed (`all-MiniLM-L6-v2`, ~90 MB), Ollama optional |
+| AI integration | MCP (Model Context Protocol) server |
 
 ## Quick start
 
 ```bash
-# Start Postgres + local-brain server
-~/brain/brain.sh start
+git clone https://github.com/ksohos333/local-brain.git
+cd local-brain
 
-# Open desktop app
-~/brain/brain.sh open
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-# Or open in browser
-~/brain/brain.sh browser
+bash run.sh
 ```
 
-## Project layout
+Then open <http://127.0.0.1:9876> for the web UI, or launch the desktop shell:
+
+```bash
+python desktop.py
+```
+
+The first run creates the database at `~/.local/share/local-brain/brain.db` and
+downloads the embedding model. After that, everything is offline.
+
+## Architecture
 
 ```text
-~/local-brain/
+local-brain/
 ├── local_brain/
-│   ├── main.py          # FastAPI app
-│   ├── vault.py         # Markdown file operations
-│   ├── rag.py           # Postgres RAG backend
-│   ├── embeddings.py    # fastembed + Ollama embedders
-│   ├── chat.py          # TrueForge chat proxy
-│   └── static/          # Web UI (Milkdown + chat)
-├── desktop.py           # PySide6 launcher
-├── run.sh               # Server launcher
-├── postgres.sh          # Postgres container manager
-├── start_server.py      # Detached server starter
-└── requirements.txt
+│   ├── main.py          # FastAPI app — notes, search, graph, chat, calendar
+│   ├── rag.py           # Hybrid retrieval: SQLite FTS5 + sqlite-vec
+│   ├── embeddings.py    # fastembed / Ollama embedders
+│   ├── vault.py         # Markdown read/write, frontmatter, backlinks
+│   ├── chat.py          # Chat proxy over local / hosted models
+│   ├── ingest.py        # Ingest external notes and chat transcripts
+│   ├── apps.py          # App registry exposed via /api/apps
+│   ├── caldav.py        # CalDAV calendar sync
+│   ├── logseq.py        # Logseq note ingestion
+│   ├── jobs.py          # Job tracker
+│   ├── leads.py         # Leads tracker
+│   ├── termart.py       # Terminal art helpers
+│   ├── config.py        # Configuration
+│   └── static/          # Web UI — index.html, app.js, style.css
+├── mcp_rag_server.py    # MCP server bridging AI tools to the brain
+├── desktop.py           # PySide6 desktop shell
+├── run.sh               # Launch uvicorn on 127.0.0.1:9876
+├── start_server.py      # Start the server as a detached daemon
+└── migrate_pg_to_sqlite.py  # One-off migration from the Postgres backend
 ```
 
-## Commands
+## API
 
-| Command | Description |
+A selection of the 37 endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/notes` | List notes in the vault |
+| `GET` | `/api/notes/{path}` | Read a single note |
+| `POST` | `/api/notes` | Create or update a note |
+| `GET` | `/api/search` | Keyword + semantic search |
+| `GET` | `/api/rag/search` | Hybrid RAG retrieval |
+| `GET` | `/api/rag/recent` | Recently indexed content |
+| `POST` | `/api/rag/index` | Index content into the vault |
+| `POST` | `/api/rag/reindex-vault` | Rebuild the whole index |
+| `GET` | `/api/graph` | Link graph for the D3 view |
+| `GET` | `/api/backlinks/{path}` | Backlinks for a note |
+| `POST` | `/api/chat` | Chat over the local brain |
+| `GET` | `/api/calendar/events` | CalDAV calendar events |
+| `GET` | `/api/leads`, `/api/jobs`, `/api/todos` | Tracker data |
+
+Full list: `http://127.0.0.1:9876/docs` (FastAPI auto-generated OpenAPI UI).
+
+## MCP server
+
+`mcp_rag_server.py` exposes the brain to AI coding tools over the Model Context
+Protocol. It talks to the local server over HTTP, so the MCP server and the
+brain can run as separate processes.
+
+```bash
+source .venv/bin/activate
+python mcp_rag_server.py
+```
+
+Tools exposed:
+
+| Tool | Purpose |
 |---|---|
-| `~/brain/brain.sh start` | Start Postgres + local-brain server |
-| `~/brain/brain.sh stop` | Stop server + Postgres |
-| `~/brain/brain.sh status` | Show service status |
-| `~/brain/brain.sh open` | Launch desktop app |
-| `~/brain/brain.sh browser` | Open in browser |
-| `~/brain/brain.sh reindex` | Reindex vaults into RAG memory |
-| `~/brain/brain.sh logs` | Tail server log |
+| `search_memory` | Hybrid semantic + keyword search over the vault |
+| `recent_context` | Most recently indexed content for a session |
+| `index_memory` | Index new content into the vault |
 
-## Config
+Example client configuration:
 
-`~/.config/local-brain/config.yaml`
-
-```yaml
-embedding:
-  provider: fastembed          # or "ollama"
-  model: sentence-transformers/all-MiniLM-L6-v2
-  cache_dir: ~/.cache/brain/embeddings
-
-ollama:
-  url: http://localhost:11434
-
-trueforge:
-  url: http://localhost:8790
-  model: local-llama/qwen3-8b-local
-
-chat:
-  provider: auto  # auto | trueforge | ollama
-  ollama_model: llama3.2:3b
-
-models:
-  - name: "cloud fallback"
-    provider: openai
-    base_url: "https://api.openai.com/v1"
-    model: "gpt-4o-mini"
-    api_key: "${OPENAI_API_KEY}"
+```json
+{
+  "mcpServers": {
+    "local-brain": {
+      "command": "python",
+      "args": ["/path/to/local-brain/mcp_rag_server.py"],
+      "env": { "LOCAL_BRAIN_URL": "http://127.0.0.1:9876" }
+    }
+  }
+}
 ```
 
-## RAG API endpoints
+## Development
 
-- `GET /api/rag/stats` — memory stats
-- `POST /api/rag/index` — index a chunk
-- `GET /api/rag/search?q=...&k=5` — hybrid search
-- `GET /api/rag/recent?session_id=...&n=10` — recent session context
-- `POST /api/rag/reindex-vault` — reindex all vaults
+```bash
+source .venv/bin/activate
+uvicorn local_brain.main:app --reload --port 9876
+```
 
-## Chat API endpoints
+The vault location, embedding model and MCP endpoint are all configurable in
+`local_brain/config.py`.
 
-- `GET /api/models` — merged model list (Ollama + config + TrueForge default)
-- `GET /api/context?message=...&k=4` — retrieved chunks for a query
-- `POST /api/chat` — SSE chat stream via TrueForge with RAG context
+## Status
 
-## Integration
+Actively developed. The Postgres + pgvector backend was replaced by SQLite with
+`sqlite-vec` and FTS5, which removed the container dependency and made the
+whole thing single-file; `migrate_pg_to_sqlite.py` handles moving an existing
+vault across.
 
-- OpenCode chats are auto-exported to `~/brain/local-brain/pages/opencode/` by `~/local-memory/memory.sh watch`.
-- bigus_dickus automatically saves turns and retrieves context from local-brain RAG.
-- The chat panel inside local-brain proxies all chat through TrueForge and injects retrieved context.
+## License
+
+MIT — see [LICENSE](LICENSE).
