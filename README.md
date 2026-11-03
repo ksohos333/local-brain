@@ -168,6 +168,20 @@ Actively developed. The Postgres + pgvector backend was replaced by SQLite with
 whole thing single-file; `migrate_pg_to_sqlite.py` handles moving an existing
 vault across.
 
+## How I built this
+
+**The problem.** Search over your own notes is easy if you are willing to upload them somewhere. The version I wanted was the opposite: the vault stays on the machine, and the search quality does not collapse because of that.
+
+**Design decisions worth arguing about:**
+
+- **Plain Markdown as the source of truth.** The vault is files you own and can read with `cat`. Everything else — the index, the vectors, the embeddings — is derived and rebuildable. If the database dies, you lose nothing.
+- **Hybrid retrieval, and the ranking is the real problem.** FTS5 keyword scoring and sqlite-vec cosine similarity disagree constantly, especially on short queries and rare terms. Ranking them together and being able to explain *why* a document surfaced mattered more than raw recall.
+- **Local embeddings by default.** `fastembed` or Ollama, never a hosted API. This is the constraint that makes the offline promise real, and it is also the constraint that would have been easiest to quietly abandon.
+- **SQLite with FTS5 + sqlite-vec instead of a vector database.** For a single-user vault, a vector database is operational weight with no payoff. One file, one backup, one thing to corrupt.
+- **MCP server as the interface.** Exposing `search_memory`, `recent_context` and `index_memory` means other tools can use the vault without reimplementing retrieval — and without the vault's contents leaking into a third-party service by accident.
+
+**What I would change with more time:** retrieval quality is currently tuned by hand. A small evaluation set with real questions from my own notes, and a regression test on it, would make changes to the ranker safe instead of hopeful.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
